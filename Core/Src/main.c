@@ -26,6 +26,7 @@
 #include "MY_ILI9341.h"
 #include "TSC2046.h"
 #include "Gui.h"
+#include "motor_driver.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -39,14 +40,14 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-#define DIR_POS GPIO_PIN_SET
-#define DIR_NEG GPIO_PIN_RESET
 #define CAL_MODE 0
 
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi1;
+
+TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN PV */
 
@@ -56,21 +57,14 @@ SPI_HandleTypeDef hspi1;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
+static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void move1Sec(GPIO_PinState dir){
-	HAL_GPIO_WritePin (I2C_SDA_GPIO_Port, I2C_SDA_Pin, dir);
-	int t = 0;
-	while(t<1000){
-		HAL_GPIO_TogglePin (I2C_SCL_GPIO_Port, I2C_SCL_Pin);
-		HAL_Delay (1);
-		t++;
-	}
-}
+
 /* USER CODE END 0 */
 
 /**
@@ -103,20 +97,35 @@ int main(void)
   MX_GPIO_Init();
   MX_SPI1_Init();
   MX_USB_DEVICE_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   ILI9341_Init(&hspi1, LCD_CS_GPIO_Port, LCD_CS_Pin, LCD_DC_GPIO_Port, LCD_DC_Pin, LCD_RST_GPIO_Port, LCD_RST_Pin);
-  HAL_GPIO_WritePin(LCD_LED_GPIO_Port, LCD_LED_Pin, 1);
-  ILI9341_setRotation(1);
+  HAL_GPIO_WritePin(LCD_LED_GPIO_Port, LCD_LED_Pin, 1); //Keeps screen on
+  ILI9341_setRotation(1); //Rotation vertical, pins at top
+  //TSC2046_Begin(&hspi2, TS_CS_GPIO_Port, TS_CS_Pin);
   ILI9341_Fill(COLOR_BLUE);
   ILI9341_printText("Hello World", 20, 40, COLOR_WHITE, COLOR_BLACK, 2);
+  HAL_GPIO_WritePin(MOTOR_DIR_GPIO_Port, MOTOR_DIR_Pin, GPIO_PIN_RESET); //Initialize motor direction to CW
+  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1); //Start motor pulse
   /* USER CODE END 2 */
+  /*
+  if(CAL_MODE)
+    {
+    TSC2046_Calibrate();
+    ILI9341_Fill(COLOR_WHITE);
+    Print_Cal_Vals();
+    }
+  else
+  	{
+  	Set_Cal_Vals();
+  	}
+  */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  move1Sec(DIR_POS);
-	  move1Sec(DIR_NEG);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -208,6 +217,65 @@ static void MX_SPI1_Init(void)
 }
 
 /**
+  * @brief TIM4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM4_Init(void)
+{
+
+  /* USER CODE BEGIN TIM4_Init 0 */
+
+  /* USER CODE END TIM4_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM4_Init 1 */
+
+  /* USER CODE END TIM4_Init 1 */
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 80-1;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 50-1;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 50-1;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM4_Init 2 */
+
+  /* USER CODE END TIM4_Init 2 */
+  HAL_TIM_MspPostInit(&htim4);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -229,7 +297,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOC, LCD_DC_Pin|LCD_RST_Pin|LCD_CS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, I2C_SCL_Pin|I2C_SDA_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(MOTOR_DIR_GPIO_Port, MOTOR_DIR_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : LCD_LED_Pin LCD_DC_Pin LCD_RST_Pin LCD_CS_Pin */
   GPIO_InitStruct.Pin = LCD_LED_Pin|LCD_DC_Pin|LCD_RST_Pin|LCD_CS_Pin;
@@ -238,12 +306,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : I2C_SCL_Pin I2C_SDA_Pin */
-  GPIO_InitStruct.Pin = I2C_SCL_Pin|I2C_SDA_Pin;
+  /*Configure GPIO pin : MOTOR_DIR_Pin */
+  GPIO_InitStruct.Pin = MOTOR_DIR_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(MOTOR_DIR_GPIO_Port, &GPIO_InitStruct);
 
 }
 

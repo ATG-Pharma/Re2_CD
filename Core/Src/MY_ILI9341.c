@@ -289,6 +289,8 @@ const unsigned char font1[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00  
 };
 
+
+
 //***** Functions prototypes *****//
 //1. Write Command to LCD
 void ILI9341_SendCommand(uint8_t com)

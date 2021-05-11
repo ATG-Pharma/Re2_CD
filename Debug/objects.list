@@ -2,6 +2,7 @@
 "Core/Src/MY_ILI9341.o"
 "Core/Src/TSC2046.o"
 "Core/Src/main.o"
+"Core/Src/motor_driver.o"
 "Core/Src/stm32f4xx_hal_msp.o"
 "Core/Src/stm32f4xx_it.o"
 "Core/Src/syscalls.o"
