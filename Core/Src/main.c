@@ -81,7 +81,7 @@ int main(void)
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
-
+uint8_t i;
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
@@ -107,7 +107,10 @@ int main(void)
   ILI9341_printText("Hello World", 20, 40, COLOR_WHITE, COLOR_BLACK, 2);
   HAL_GPIO_WritePin(MOTOR_DIR_GPIO_Port, MOTOR_DIR_Pin, GPIO_PIN_RESET); //Initialize motor direction to CW
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1); //Start motor pulse
+
   /* USER CODE END 2 */
+
+
   /*
   if(CAL_MODE)
     {
@@ -125,13 +128,15 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	Manual_Mode();
+
   }
   /* USER CODE END 3 */
 }
+
 
 /**
   * @brief System Clock Configuration
